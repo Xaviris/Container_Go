@@ -1,0 +1,4 @@
+http://cdimage.ubuntu.com/ubuntu-base/releases/23.10/release/
+- base image ubuntu file system
+- extract tar into folder
+- sudo debootstrap focal ubuntu-chroot/
