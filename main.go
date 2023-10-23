@@ -2,16 +2,23 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
+
+	// "strings"
 	"syscall"
+	// "github.com/fsnotify/fsnotify"
 )
 
 // docker         run image <cmd> <params>
 // go run main.go run       <cmd> <params>
 
 func main() {
-	fmt.Println(os.Args[1])
 	switch os.Args[1] {
 	case "run":
 		run()
@@ -53,11 +60,21 @@ func run() {
 func child() {
 	fmt.Printf("Running %v\n as %d\n", os.Args[2:], os.Getpid())
 
+	// create control groups function
+	cg()
+
 	// set namespace hostname
 	syscall.Sethostname([]byte("container"))
 
 	// change root directory to new ubuntu fs
-	syscall.Chroot("/home/xavierruiz/Documents/Github/Container_Go/ubuntu-chroot")
+
+	exePath, err := os.Executable()
+	if err != nil {
+		log.Fatalf("Failed to determine executable path: %v", err)
+	}
+	baseDir := filepath.Dir(exePath)
+	chrootPath := filepath.Join(baseDir, "ubuntu-chroot")
+	syscall.Chroot(chrootPath)
 	syscall.Chdir("/")
 
 	// mount proc directory as sub file system for kernel
@@ -75,6 +92,29 @@ func child() {
 
 	// unmount /proc when finished
 	syscall.Unmount("/proc", 0)
+}
+
+// control group to limit memory that processes can use inside the container process
+func cg() {
+	// file path of control groups on host machine
+	cgroups := "/sys/fs/cgroup/"
+	// create a directory for container control groups
+	err := os.Mkdir(filepath.Join(cgroups, "container"), 0755)
+
+	// if err is not 0 and os.IsExist is false (check if directory exists, if false, panic)
+	if err != nil && !os.IsExist(err) {
+		panic(err)
+	}
+	// enable pids controller for cgroup
+	cmd := exec.Command("echo '+pids' | sudo tee /sys/fs/cgroup/container/cgroup.subtree_control")
+	cmd.Run()
+
+	// Constrain number of processes within container to 20
+	must(ioutil.WriteFile(filepath.Join(cgroups, "container/pids.max"), []byte("20"), 0700))
+	// Remove new cgroup in place when container exits
+	// must(ioutil.WriteFile(filepath.Join(cgroups, "container/notify_on_release"), []byte("1"), 0700))
+	// Gets current process of container and adds to control group processes to apply limits
+	must(ioutil.WriteFile(filepath.Join(cgroups, "container/cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700))
 }
 
 func must(err error) {

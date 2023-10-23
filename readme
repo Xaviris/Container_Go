@@ -2,3 +2,16 @@ http://cdimage.ubuntu.com/ubuntu-base/releases/23.10/release/
 - base image ubuntu file system
 - extract tar into folder
 - sudo debootstrap focal ubuntu-chroot/
+
+
+Notes:
+  - namespaces
+    - control what can be seen
+  - control groups
+    - controls what can be used (memory, cpu, etc)
+  - file permissions
+    - read = 4, write = 2, exec = 1
+    - 0 7 0 0
+      7: owners permissions
+      0: group permissions
+      0: other permissions
