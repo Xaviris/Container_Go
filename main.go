@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
-
 	"log"
 	"os"
 	"os/exec"
@@ -15,14 +15,23 @@ import (
 	// "github.com/fsnotify/fsnotify"
 )
 
-// docker         run image <cmd> <params>
-// go run main.go run       <cmd> <params>
+// go run main.go run <hostname> <cmd> <params>
+
+var (
+	hostname string
+)
 
 func main() {
+	// set flags for command
+	flag.StringVar(&hostname, "hostname", "container", "HostName for container")
+
 	switch os.Args[1] {
 	case "run":
 		run()
 	case "child":
+		// remove the "run" argument and then parse flags
+		os.Args = append(os.Args[:1], os.Args[2:]...)
+		flag.Parse()
 		child()
 	default:
 		panic("bad command")
@@ -64,7 +73,7 @@ func child() {
 	cg()
 
 	// set namespace hostname
-	syscall.Sethostname([]byte("container"))
+	syscall.Sethostname([]byte(hostname))
 
 	// change root directory to new ubuntu fs
 
@@ -111,8 +120,6 @@ func cg() {
 
 	// Constrain number of processes within container to 20
 	must(ioutil.WriteFile(filepath.Join(cgroups, "container/pids.max"), []byte("20"), 0700))
-	// Remove new cgroup in place when container exits
-	// must(ioutil.WriteFile(filepath.Join(cgroups, "container/notify_on_release"), []byte("1"), 0700))
 	// Gets current process of container and adds to control group processes to apply limits
 	must(ioutil.WriteFile(filepath.Join(cgroups, "container/cgroup.procs"), []byte(strconv.Itoa(os.Getpid())), 0700))
 }
