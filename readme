@@ -15,3 +15,6 @@ Notes:
       7: owners permissions
       0: group permissions
       0: other permissions
+
+Instructions:
+go run main.go run /bin/bash
